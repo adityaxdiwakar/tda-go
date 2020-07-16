@@ -1,12 +1,15 @@
 package tda
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/google/go-querystring/query"
 )
 
 type ApiError struct {
@@ -15,25 +18,56 @@ type ApiError struct {
 }
 
 func (r *ApiError) Error() string {
-	return fmt.Sprintf("reason %d: err %v", r.Reason, r.Err)
+	return fmt.Sprintf("reason %s: err %v", r.Reason, r.Err)
 }
 
 type Session struct {
 	Refresh     string
 	ConsumerKey string
 	RootUrl     string
-	HttpClient  *http.Client
+	HttpClient  http.Client
 }
 
 type AccessTokenStruct struct {
-	GrantType    string `json:"grant_type"`
-	RefreshToken string `json:"refresh_token"`
-	ClientID     string `json:"client_id"`
-	RedirectUri  string `json:"redirect_uri"`
+	GrantType    string `url:"grant_type"`
+	RefreshToken string `url:"refresh_token"`
+	ClientID     string `url:"client_id"`
+	RedirectUri  string `url:"redirect_uri"`
 }
 
 func (s *Session) InitSession() {
-	s.HttpClient = &http.Client{Timeout: time.Second * 10}
+	s.HttpClient = http.Client{Timeout: time.Second * 10}
+}
+
+func getHttpError(res *http.Response) error {
+
+	switch res.StatusCode {
+	case 200:
+		return nil
+	case 400:
+		return &ApiError{
+			Reason: "Bad request was made, are you sure your keys are properly typed?",
+			Err:    errors.New("400"),
+		}
+	case 401:
+		return &ApiError{
+			Reason: "Invalid refresh token or consumer key, try again",
+			Err:    errors.New("401"),
+		}
+
+	default:
+		return &ApiError{
+			Reason: "Server error handling your request",
+			Err:    errors.New(fmt.Sprintf("%d", res.StatusCode)),
+		}
+	}
+}
+
+type AccessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	Scope       string `json:"scope"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
 }
 
 func (s *Session) GetAccessToken() (string, error) {
@@ -46,9 +80,16 @@ func (s *Session) GetAccessToken() (string, error) {
 
 	url := fmt.Sprintf("%s/oauth2/token", s.RootUrl)
 
-	buf := new(bytes.Buffer)
-	json.NewEncoder(buf).Encode(payload)
-	req, err := http.NewRequest("POST", url, buf)
+	v, err := query.Values(payload)
+	if err != nil {
+		return "", &ApiError{
+			Reason: "Could not querystring your payload",
+			Err:    err,
+		}
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(v.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	if err != nil {
 		return "", &ApiError{
@@ -66,4 +107,20 @@ func (s *Session) GetAccessToken() (string, error) {
 		}
 	}
 
+	if err = getHttpError(res); err != nil {
+		return "", err
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", &ApiError{
+			Reason: "Could not read TDA Response",
+			Err:    err,
+		}
+	}
+
+	var tokenResponse AccessTokenResponse
+	json.Unmarshal(body, &tokenResponse)
+
+	return tokenResponse.AccessToken, nil
 }
