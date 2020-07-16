@@ -12,52 +12,52 @@ var FundamentalsEmpty = errors.New("tda: empty fundamentals received")
 
 type InstrumentFundamentals struct {
 	Fundamental struct {
-		Symbol              string  `json:"symbol"`
-		High52              float64 `json:"high52"`
-		Low52               float64 `json:"low52"`
-		DividendAmount      float64 `json:"dividendAmount"`
-		DividendYield       float64 `json:"dividendYield"`
-		DividendDate        string  `json:"dividendDate"`
-		PeRatio             float64 `json:"peRatio"`
-		PegRatio            float64 `json:"pegRatio"`
-		PbRatio             float64 `json:"pbRatio"`
-		PrRatio             float64 `json:"prRatio"`
-		PcfRatio            float64 `json:"pcfRatio"`
-		GrossMarginTTM      float64 `json:"grossMarginTTM"`
-		GrossMarginMRQ      float64 `json:"grossMarginMRQ"`
-		NetProfitMarginTTM  float64 `json:"netProfitMarginTTM"`
-		NetProfitMarginMRQ  float64 `json:"netProfitMarginMRQ"`
-		OperatingMarginTTM  float64 `json:"operatingMarginTTM"`
-		OperatingMarginMRQ  float64 `json:"operatingMarginMRQ"`
-		ReturnOnEquity      float64 `json:"returnOnEquity"`
-		ReturnOnAssets      float64 `json:"returnOnAssets"`
-		ReturnOnInvestment  float64 `json:"returnOnInvestment"`
-		QuickRatio          float64 `json:"quickRatio"`
-		CurrentRatio        float64 `json:"currentRatio"`
-		InterestCoverage    float64 `json:"interestCoverage"`
-		TotalDebtToCapital  float64 `json:"totalDebtToCapital"`
-		LtDebtToEquity      float64 `json:"ltDebtToEquity"`
-		TotalDebtToEquity   float64 `json:"totalDebtToEquity"`
-		EpsTTM              float64 `json:"epsTTM"`
-		EpsChangePercentTTM float64 `json:"epsChangePercentTTM"`
-		EpsChangeYear       float64 `json:"epsChangeYear"`
-		EpsChange           float64 `json:"epsChange"`
-		RevChangeYear       float64 `json:"revChangeYear"`
-		RevChangeTTM        float64 `json:"revChangeTTM"`
-		RevChangeIn         float64 `json:"revChangeIn"`
-		SharesOutstanding   int64   `json:"sharesOutstanding"`
-		MarketCapFloat      float64 `json:"marketCapFloat"`
-		MarketCap           float64 `json:"marketCap"`
-		BookValuePerShare   float64 `json:"bookValuePerShare"`
-		ShortIntToFloat     float64 `json:"shortIntToFloat"`
-		ShortIntDayToCover  float64 `json:"shortIntDayToCover"`
-		DivGrowthRate3Year  float64 `json:"divGrowthRate3Year"`
-		DividendPayAmount   float64 `json:"dividendPayAmount"`
-		DividendPayDate     string  `json:"dividendPayDate"`
-		Beta                float64 `json:"beta"`
-		Vol1DayAvg          int     `json:"vol1DayAvg"`
-		Vol10DayAvg         int     `json:"vol10DayAvg"`
-		Vol3MonthAvg        int     `json:"vol3MonthAvg"`
+		Symbol              string      `json:"symbol"`
+		High52              json.Number `json:"high52"`
+		Low52               json.Number `json:"low52"`
+		DividendAmount      json.Number `json:"dividendAmount"`
+		DividendYield       json.Number `json:"dividendYield"`
+		DividendDate        string      `json:"dividendDate"`
+		PeRatio             json.Number `json:"peRatio"`
+		PegRatio            json.Number `json:"pegRatio"`
+		PbRatio             json.Number `json:"pbRatio"`
+		PrRatio             json.Number `json:"prRatio"`
+		PcfRatio            json.Number `json:"pcfRatio"`
+		GrossMarginTTM      json.Number `json:"grossMarginTTM"`
+		GrossMarginMRQ      json.Number `json:"grossMarginMRQ"`
+		NetProfitMarginTTM  json.Number `json:"netProfitMarginTTM"`
+		NetProfitMarginMRQ  json.Number `json:"netProfitMarginMRQ"`
+		OperatingMarginTTM  json.Number `json:"operatingMarginTTM"`
+		OperatingMarginMRQ  json.Number `json:"operatingMarginMRQ"`
+		ReturnOnEquity      json.Number `json:"returnOnEquity"`
+		ReturnOnAssets      json.Number `json:"returnOnAssets"`
+		ReturnOnInvestment  json.Number `json:"returnOnInvestment"`
+		QuickRatio          json.Number `json:"quickRatio"`
+		CurrentRatio        json.Number `json:"currentRatio"`
+		InterestCoverage    json.Number `json:"interestCoverage"`
+		TotalDebtToCapital  json.Number `json:"totalDebtToCapital"`
+		LtDebtToEquity      json.Number `json:"ltDebtToEquity"`
+		TotalDebtToEquity   json.Number `json:"totalDebtToEquity"`
+		EpsTTM              json.Number `json:"epsTTM"`
+		EpsChangePercentTTM json.Number `json:"epsChangePercentTTM"`
+		EpsChangeYear       json.Number `json:"epsChangeYear"`
+		EpsChange           json.Number `json:"epsChange"`
+		RevChangeYear       json.Number `json:"revChangeYear"`
+		RevChangeTTM        json.Number `json:"revChangeTTM"`
+		RevChangeIn         json.Number `json:"revChangeIn"`
+		SharesOutstanding   json.Number `json:"sharesOutstanding"`
+		MarketCapFloat      json.Number `json:"marketCapFloat"`
+		MarketCap           json.Number `json:"marketCap"`
+		BookValuePerShare   json.Number `json:"bookValuePerShare"`
+		ShortIntToFloat     json.Number `json:"shortIntToFloat"`
+		ShortIntDayToCover  json.Number `json:"shortIntDayToCover"`
+		DivGrowthRate3Year  json.Number `json:"divGrowthRate3Year"`
+		DividendPayAmount   json.Number `json:"dividendPayAmount"`
+		DividendPayDate     string      `json:"dividendPayDate"`
+		Beta                json.Number `json:"beta"`
+		Vol1DayAvg          json.Number `json:"vol1DayAvg"`
+		Vol10DayAvg         json.Number `json:"vol10DayAvg"`
+		Vol3MonthAvg        json.Number `json:"vol3MonthAvg"`
 	} `json:"fundamental"`
 	Cusip       string `json:"cusip"`
 	Symbol      string `json:"symbol"`
@@ -104,5 +104,6 @@ func (s *Session) GetInstrumentFundamentals(ticker string) (*InstrumentFundament
 	var fundamentalsDataT map[string]InstrumentFundamentals
 	json.Unmarshal(body, &fundamentalsDataT)
 	fundamentalsData := fundamentalsDataT[ticker]
+
 	return &fundamentalsData, nil
 }
