@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"strings"
 )
 
 var FundamentalsEmpty = errors.New("tda: empty fundamentals received")
@@ -101,9 +103,11 @@ func (s *Session) GetInstrumentFundamentals(ticker string) (*InstrumentFundament
 		return nil, FundamentalsEmpty
 	}
 
+	log.Println(string(body))
+
 	var fundamentalsDataT map[string]InstrumentFundamentals
 	json.Unmarshal(body, &fundamentalsDataT)
-	fundamentalsData := fundamentalsDataT[ticker]
+	fundamentalsData := fundamentalsDataT[strings.ToUpper(ticker)]
 
 	return &fundamentalsData, nil
 }
