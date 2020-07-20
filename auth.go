@@ -21,24 +21,52 @@ func (r *ApiError) Error() string {
 	return fmt.Sprintf("reason %s: err %v", r.Reason, r.Err)
 }
 
+// Session is the client structure that is used for all relevant parts of this
+// library. The session struct takes in 3 required parameters which is the
+// refresh key, consumer key, and the root url (which is usually the same for
+// all endusers).
 type Session struct {
-	Refresh     string
+	// RefreshKey of your account given by the TDAmeritrade OAuth2 Workflow
+	Refresh string
+
+	// ConsumerKey from the TDAmeritrade Developer Application Portal
 	ConsumerKey string
-	RootUrl     string
-	HttpClient  http.Client
+
+	// RootUrl for the API, this will usually be https://api.tdameritrade.com/v1
+	RootUrl string
+
+	// HttpClient is the library specific client, defaulted to initialize with
+	// a 10 second limit for requests, in case of errors on TDA servers to
+	// prevent stalling
+	HttpClient http.Client
 }
 
+// AccessTokenStruct is the internal structure used for establishing the
+// request between TDAmeritrade Servers and the library, this is used to create
+// a URLEncoded Form object which is sent to retrieve a user's access token
 type AccessTokenStruct struct {
-	GrantType    string `url:"grant_type"`
+	// GrantType is the type of grant for the access token, this will always be
+	// 'refresh_token' for this library
+	GrantType string `url:"grant_type"`
+
+	// RefreshToken provided by the Session intialization struct
 	RefreshToken string `url:"refresh_token"`
-	ClientID     string `url:"client_id"`
-	RedirectUri  string `url:"redirect_uri"`
+
+	// ClientID is the CONSUMER_KEY with '@AMER.OAUTHAPP' added
+	ClientID string `url:"client_id"`
+
+	// RedirectUri of the app from TDAmeritrade's Development Portal
+	RedirectUri string `url:"redirect_uri"`
 }
 
+// InitSession is to be called after initializing the Session struct in order
+// to create the root library HTTP client with a default timeout of 10 seconds
 func (s *Session) InitSession() {
 	s.HttpClient = http.Client{Timeout: time.Second * 10}
 }
 
+// getHttpError is an internal error handler function to allow for easier error
+// handling with respondes from the TDAmeritrade API
 func getHttpError(res *http.Response) error {
 
 	switch res.StatusCode {
@@ -63,13 +91,30 @@ func getHttpError(res *http.Response) error {
 	}
 }
 
+// AccessTokenResponse is a struct to load the TDAmeritrade Response into, this
+// takes many fields and the user is returned the AccessToken using
+// *Session.GetAccessToken()
 type AccessTokenResponse struct {
+	// AccessToken provided from the endpoint to be used to make subsequent
+	// requests
 	AccessToken string `json:"access_token"`
-	Scope       string `json:"scope"`
-	ExpiresIn   int    `json:"expires_in"`
-	TokenType   string `json:"token_type"`
+
+	// Scope for what endpoints are allowed, for properly configured apps, this
+	// will be all scopes
+	Scope string `json:"scope"`
+
+	// Expiry for the access token, all access tokens expire after 1800s (30m)
+	// by default
+	ExpiresIn int `json:"expires_in"`
+
+	// TokenType is 'Bearer' for the TDA API
+	TokenType string `json:"token_type"`
 }
 
+// GetAccessToken is the session function to retrieve the access token, this
+// returns a multitude of errors and is only intended for internal library
+// usage but is exposed in case the AccessToken is important to be accessed
+// externally
 func (s *Session) GetAccessToken() (string, error) {
 	payload := &AccessTokenStruct{
 		GrantType:    "refresh_token",
