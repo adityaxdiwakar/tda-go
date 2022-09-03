@@ -6,20 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/google/go-querystring/query"
 )
-
-type ApiError struct {
-	Reason string
-	Err    error
-}
-
-func (r *ApiError) Error() string {
-	return fmt.Sprintf("reason %s: err %v", r.Reason, r.Err)
-}
 
 // Session is the client structure that is used for all relevant parts of this
 // library. The session struct takes in 3 required parameters which is the
@@ -35,10 +27,16 @@ type Session struct {
 	// RootUrl for the API, this will usually be https://api.tdameritrade.com/v1
 	RootUrl string
 
-	// HttpClient is the library specific client, defaulted to initialize with
+	// httpClient is the library specific client, defaulted to initialize with
 	// a 10 second limit for requests, in case of errors on TDA servers to
 	// prevent stalling
-	HttpClient http.Client
+	httpClient http.Client
+
+	// accessStatPath is a path that can be used to determine when the last
+	// access token was created and also to receive the value. Since this
+	// access token can be used for sensitive use cases, it is recommended
+	// that this is set safely; can only be set, cannot be changed.
+	accessStatPath string
 }
 
 // AccessTokenStruct is the internal structure used for establishing the
@@ -59,35 +57,54 @@ type AccessTokenStruct struct {
 	RedirectUri string `url:"redirect_uri"`
 }
 
-// InitSession is to be called after initializing the Session struct in order
-// to create the root library HTTP client with a default timeout of 10 seconds
-func (s *Session) InitSession() {
-	s.HttpClient = http.Client{Timeout: time.Second * 10}
+// SessionOption is an option that can be provided to NewSession in order to
+// modify the internal state of the created Session.
+type SessionOption func(*Session)
+
+// WithHttpClient is an option that returns a SessionOption that can be used
+// to change the internal HTTP Client used by the TDA Session.
+func WithHttpClient(client http.Client) SessionOption {
+	return func(s *Session) {
+		s.httpClient = client
+	}
+}
+
+// WithStatPath is an option that sets the stat path to prevent creating
+// a new access token on every request. This is recommended to be used if
+// server is frequently making requests.
+func WithStatPath(path string) SessionOption {
+	return func(s *Session) {
+		s.accessStatPath = path
+	}
+}
+
+// NewSession constructs a new TDA Go Session taking in options.
+func NewSession(refresh, consumerKey, rootUrl string, opts ...SessionOption) *Session {
+	s := &Session{
+		Refresh:     refresh,
+		ConsumerKey: consumerKey,
+		RootUrl:     rootUrl,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // getHttpError is an internal error handler function to allow for easier error
 // handling with respondes from the TDAmeritrade API
 func getHttpError(res *http.Response) error {
-
 	switch res.StatusCode {
 	case 200:
 		return nil
 	case 400:
-		return &ApiError{
-			Reason: "Bad request was made, are you sure your keys are properly typed?",
-			Err:    errors.New("400"),
-		}
+		return errors.New("Bad request was made, are you sure your keys are properly typed?")
 	case 401:
-		return &ApiError{
-			Reason: "Invalid refresh token or consumer key, try again",
-			Err:    errors.New("401"),
-		}
-
+		return errors.New("Invalid refresh token or consumer key, try again")
 	default:
-		return &ApiError{
-			Reason: "Server error handling your request",
-			Err:    errors.New(fmt.Sprintf("%d", res.StatusCode)),
-		}
+		return fmt.Errorf("Server could not handle request, returned status: %d", res.StatusCode)
 	}
 }
 
@@ -116,6 +133,39 @@ type AccessTokenResponse struct {
 // usage but is exposed in case the AccessToken is important to be accessed
 // externally
 func (s *Session) GetAccessToken() (string, error) {
+
+	if s.accessStatPath != "" {
+		// First, check if there is a stat path set to see if token
+		// generation is required.
+		info, err := os.Stat(s.accessStatPath)
+		if errors.Is(err, os.ErrNotExist) {
+			file, err := os.Create(s.accessStatPath)
+			file.Close()
+			if err != nil {
+				return "", fmt.Errorf("could not create storage in stat path")
+			}
+
+			info, err = os.Stat(s.accessStatPath)
+			if err != nil {
+				return "", fmt.Errorf("could not stat recently created stat file")
+			}
+		} else if err != nil {
+			return "", fmt.Errorf("could not stat access path")
+		}
+
+		fileTime := info.ModTime()
+		dat, err := os.ReadFile(s.accessStatPath)
+		if err != nil {
+			return "", fmt.Errorf("could not open access token file: %w", err)
+		}
+
+		if !(fileTime.Before(time.Now().Add(-25*time.Minute)) || string(dat) == "") {
+			// token exists and is valid, no need to generate new token
+			return string(dat), nil
+		}
+	}
+
+	// generate new token
 	payload := &AccessTokenStruct{
 		GrantType:    "refresh_token",
 		RefreshToken: s.Refresh,
@@ -127,29 +177,20 @@ func (s *Session) GetAccessToken() (string, error) {
 
 	v, err := query.Values(payload)
 	if err != nil {
-		return "", &ApiError{
-			Reason: "Could not querystring your payload",
-			Err:    err,
-		}
+		return "", fmt.Errorf("could not querystring keys: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(v.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	if err != nil {
-		return "", &ApiError{
-			Reason: "Could not validate request",
-			Err:    errors.New("GetAccessToken() http.newRequest cannot be validated"),
-		}
+		return "", fmt.Errorf("could not validate request")
 	}
 
-	res, err := s.HttpClient.Do(req)
+	res, err := s.httpClient.Do(req)
 
 	if err != nil {
-		return "", &ApiError{
-			Reason: "Could not process request",
-			Err:    err,
-		}
+		return "", fmt.Errorf("could not process request: %w", err)
 	}
 
 	if err = getHttpError(res); err != nil {
@@ -158,14 +199,14 @@ func (s *Session) GetAccessToken() (string, error) {
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return "", &ApiError{
-			Reason: "Could not read TDA Response",
-			Err:    err,
-		}
+		return "", fmt.Errorf("could not read TDA Response: %w", err)
 	}
 
 	var tokenResponse AccessTokenResponse
-	json.Unmarshal(body, &tokenResponse)
+	err = json.Unmarshal(body, &tokenResponse)
+	if err != nil {
+		return "", fmt.Errorf("could not response into token response struct: %w", err)
+	}
 
 	return tokenResponse.AccessToken, nil
 }

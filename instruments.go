@@ -186,31 +186,22 @@ type InstrumentFundamentals struct {
 func (s *Session) GetInstrumentFundamentals(ticker string) (*InstrumentFundamentals, error) {
 	token, err := s.GetAccessToken()
 	if err != nil {
-		return nil, &ApiError{
-			Reason: "Could not authenticate with TDAmeritrade",
-			Err:    errors.New("GetInstrumentFundamentals() GetAccessToken"),
-		}
+		return nil, err
 	}
 
 	url := fmt.Sprintf("%s/instruments?symbol=%s&projection=fundamental", s.RootUrl, ticker)
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	res, err := s.HttpClient.Do(req)
+	res, err := s.httpClient.Do(req)
 
 	if err = getHttpError(res); err != nil {
-		return nil, &ApiError{
-			Reason: "An error occured with retrieving fundamentals",
-			Err:    errors.New("GetInstrumentFundamentals() getHttpError"),
-		}
+		return nil, err
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, &ApiError{
-			Reason: "An error occured reading the respose",
-			Err:    errors.New("GetInstrumentFundamentals() ioutil.ReadAll"),
-		}
+		return nil, err
 	}
 
 	// check for empty body
