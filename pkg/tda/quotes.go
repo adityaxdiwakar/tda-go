@@ -45,7 +45,7 @@ type Quote struct {
 	Digits                             int     `json:"digits"`
 	Five2WkHigh                        float64 `json:"52WkHigh"`
 	Five2WkLow                         float64 `json:"52WkLow"`
-	NAV                                int     `json:"nAV"`
+	NAV                                float64 `json:"nAV"`
 	PeRatio                            float64 `json:"peRatio"`
 	DivAmount                          float64 `json:"divAmount"`
 	DivYield                           float64 `json:"divYield"`
