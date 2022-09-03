@@ -2,16 +2,11 @@ package tda
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 )
-
-// FundamentalsEmpty is an error for no fundamental data being received from
-// the API (for invalid tickers, typically
-var FundamentalsEmpty = errors.New("tda: empty fundamentals received")
 
 // InstrumentFundmanetals is the struct for a valid fundamentals response from TDA
 type InstrumentFundamentals struct {
@@ -204,13 +199,11 @@ func (s *Session) GetInstrumentFundamentals(ticker string) (*InstrumentFundament
 		return nil, err
 	}
 
-	// check for empty body
-	if string(body) == "{}" || string(body) == "" {
-		return nil, FundamentalsEmpty
+	var fundamentalsDataT map[string]InstrumentFundamentals
+	if err := json.Unmarshal(body, &fundamentalsDataT); err != nil {
+		return nil, fmt.Errorf("could not parse fundamentals output: %w", err)
 	}
 
-	var fundamentalsDataT map[string]InstrumentFundamentals
-	json.Unmarshal(body, &fundamentalsDataT)
 	fundamentalsData := fundamentalsDataT[strings.ToUpper(ticker)]
 
 	return &fundamentalsData, nil
