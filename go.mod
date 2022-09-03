@@ -1,5 +1,5 @@
 module github.com/adityaxdiwakar/tda-go
 
-go 1.14
+go 1.18
 
-require github.com/google/go-querystring v1.0.0
+require github.com/google/go-querystring v1.1.0
