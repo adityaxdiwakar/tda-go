@@ -208,5 +208,11 @@ func (s *Session) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("could not response into token response struct: %w", err)
 	}
 
+	if s.accessStatPath != "" {
+		if err = os.WriteFile(s.accessStatPath, []byte(tokenResponse.AccessToken), 0644); err != nil {
+			return "", fmt.Errorf("could not write token: %w", err)
+		}
+	}
+
 	return tokenResponse.AccessToken, nil
 }
